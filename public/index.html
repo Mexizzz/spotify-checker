@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spotify Checker</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --border: #242424;
+    --green: #1db954;
+    --red: #e5484d;
+    --text: #e8e8e8;
+    --muted: #666;
+    --mono: "JetBrains Mono", "Fira Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; }
+
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 20px 28px; border-bottom: 1px solid var(--border);
+  }
+  header svg { width: 28px; height: 28px; fill: var(--green); flex-shrink: 0; }
+  header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: .02em; }
+  header span { font-size: .78rem; color: var(--muted); margin-left: auto; }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px; }
+
+  label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 8px; letter-spacing: .04em; text-transform: uppercase; }
+
+  textarea {
+    width: 100%; height: 180px; resize: vertical;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 12px 14px;
+    font-family: var(--mono); font-size: .82rem; line-height: 1.6;
+    outline: none; transition: border-color .15s;
+  }
+  textarea:focus { border-color: var(--green); }
+  textarea::placeholder { color: var(--muted); }
+
+  .row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+
+  button {
+    padding: 10px 24px; border-radius: 6px; border: none; cursor: pointer;
+    font-size: .88rem; font-weight: 600; transition: opacity .15s;
+  }
+  button:hover { opacity: .85; }
+  button:disabled { opacity: .4; cursor: default; }
+  #btnCheck { background: var(--green); color: #000; }
+  #btnClear { background: var(--border); color: var(--text); }
+
+  #stats {
+    font-size: .82rem; color: var(--muted); margin-left: auto;
+  }
+  #stats b { color: var(--text); }
+
+  .progress { display: none; height: 3px; background: var(--border); border-radius: 2px; margin-top: 16px; }
+  .progress-bar { height: 100%; background: var(--green); border-radius: 2px; transition: width .3s; width: 0; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: .82rem; }
+  th {
+    text-align: left; padding: 8px 12px;
+    color: var(--muted); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 9px 12px; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #111; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 4px; font-size: .72rem; font-weight: 600;
+  }
+  .badge.premium { background: rgba(29,185,84,.15); color: var(--green); }
+  .badge.free    { background: rgba(255,255,255,.07); color: #999; }
+  .badge.invalid { background: rgba(229,72,77,.12); color: var(--red); }
+
+  .mono { font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+
+  #export {
+    display: none; margin-top: 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 18px; border-radius: 6px;
+    font-size: .82rem; cursor: pointer;
+  }
+  #export:hover { border-color: var(--green); color: var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+  </svg>
+  <h1>Spotify Checker</h1>
+  <span id="ver">sp_dc · account validator</span>
+</header>
+
+<div class="wrap">
+  <label for="input">sp_dc cookies — one per line</label>
+  <textarea id="input" placeholder="AQBxi3...&#10;AQCpd7...&#10;AQEvk9..."></textarea>
+
+  <div class="row">
+    <button id="btnCheck">Check</button>
+    <button id="btnClear">Clear</button>
+    <span id="stats"></span>
+  </div>
+
+  <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+
+  <button id="export">Export valid (.txt)</button>
+
+  <table id="table" style="display:none">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Cookie (prefix)</th>
+        <th>Status</th>
+        <th>Plan</th>
+        <th>Email</th>
+        <th>Country</th>
+        <th>Display name</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+const BATCH = 10;
+let results = [];
+
+document.getElementById("btnCheck").addEventListener("click", run);
+document.getElementById("btnClear").addEventListener("click", () => {
+  document.getElementById("input").value = "";
+  document.getElementById("tbody").innerHTML = "";
+  document.getElementById("table").style.display = "none";
+  document.getElementById("export").style.display = "none";
+  document.getElementById("stats").innerHTML = "";
+  results = [];
+});
+document.getElementById("export").addEventListener("click", exportValid);
+
+async function run() {
+  const raw = document.getElementById("input").value;
+  const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return;
+
+  const btn = document.getElementById("btnCheck");
+  btn.disabled = true;
+  document.getElementById("tbody").innerHTML = "";
+  document.getElementById("table").style.display = "table";
+  document.getElementById("export").style.display = "none";
+  results = [];
+
+  const prog = document.getElementById("progress");
+  const bar = document.getElementById("progressBar");
+  prog.style.display = "block";
+  bar.style.width = "0%";
+
+  let done = 0;
+  const stats = document.getElementById("stats");
+
+  for (let i = 0; i < lines.length; i += BATCH) {
+    const batch = lines.slice(i, i + BATCH);
+    const res = await fetch("/api/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cookies: batch }),
+    }).then(r => r.json()).catch(() => batch.map(() => ({ valid: false, reason: "network_error" })));
+
+    for (const item of res) {
+      done++;
+      results.push({ ...item, _raw: lines[i + res.indexOf(item)] });
+      appendRow(done, item);
+    }
+
+    bar.style.width = (done / lines.length * 100) + "%";
+    const valid = results.filter(r => r.valid).length;
+    stats.innerHTML = `<b>${valid}</b> valid / <b>${done}</b> checked`;
+  }
+
+  btn.disabled = false;
+  if (results.some(r => r.valid)) document.getElementById("export").style.display = "inline-block";
+}
+
+function appendRow(n, item) {
+  const tbody = document.getElementById("tbody");
+  const tr = document.createElement("tr");
+
+  if (item.valid) {
+    const plan = item.product === "premium" ? "premium" : "free";
+    tr.innerHTML = `
+      <td class="mono">${n}</td>
+      <td class="mono">${esc(item.spDc ?? "")}</td>
+      <td><span class="badge ${plan}">✓ ${plan}</span></td>
+      <td>${esc(item.product ?? "")}</td>
+      <td>${esc(item.email ?? "")}</td>
+      <td>${esc(item.country ?? "")}</td>
+      <td>${esc(item.display_name ?? "")}</td>
+    `;
+  } else {
+    tr.innerHTML = `
+      <td class="mono">${n}</td>
+      <td class="mono">${esc(item.spDc ?? "—")}</td>
+      <td><span class="badge invalid">✗ invalid</span></td>
+      <td class="mono" style="color:#555">${esc(item.reason ?? "")}</td>
+      <td>—</td><td>—</td><td>—</td>
+    `;
+  }
+
+  tbody.appendChild(tr);
+}
+
+function exportValid() {
+  const lines = results.filter(r => r.valid).map(r => r._raw);
+  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "spotify_valid.txt";
+  a.click();
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+</script>
+</body>
+</html>
