@@ -99,8 +99,8 @@
 </header>
 
 <div class="wrap">
-  <label for="input">sp_dc cookies — one per line</label>
-  <textarea id="input" placeholder="AQBxi3...&#10;AQCpd7...&#10;AQEvk9..."></textarea>
+  <label for="input">sp_dc value <span style="color:#555">or</span> full Netscape cookie file — one entry per line</label>
+  <textarea id="input" placeholder="AQBxi3...  ← paste sp_dc value directly&#10;&#10;— OR —&#10;&#10;.spotify.com	TRUE	/	TRUE	...  ← full Netscape cookie file"></textarea>
 
   <div class="row">
     <button id="btnCheck">Check</button>
@@ -191,20 +191,22 @@ function appendRow(n, item) {
   const tr = document.createElement("tr");
 
   if (item.valid) {
-    const plan = item.product === "premium" ? "premium" : "free";
+    const isFree = item.planKey === "free";
+    const badgeCls = isFree ? "free" : "premium";
+    const ownerTag = item.isOwner === true ? " <span style='font-size:.68rem;color:#aaa'>owner</span>" : item.isOwner === false ? " <span style='font-size:.68rem;color:#aaa'>member</span>" : "";
     tr.innerHTML = `
       <td class="mono">${n}</td>
-      <td class="mono">${esc(item.spDc ?? "")}</td>
-      <td><span class="badge ${plan}">✓ ${plan}</span></td>
-      <td>${esc(item.product ?? "")}</td>
+      <td class="mono">${esc(item.input ?? "")}</td>
+      <td><span class="badge ${badgeCls}">✓ valid</span></td>
+      <td>${esc(item.plan ?? "")}${ownerTag}</td>
       <td>${esc(item.email ?? "")}</td>
       <td>${esc(item.country ?? "")}</td>
-      <td>${esc(item.display_name ?? "")}</td>
+      <td>—</td>
     `;
   } else {
     tr.innerHTML = `
       <td class="mono">${n}</td>
-      <td class="mono">${esc(item.spDc ?? "—")}</td>
+      <td class="mono">${esc(item.input ?? "—")}</td>
       <td><span class="badge invalid">✗ invalid</span></td>
       <td class="mono" style="color:#555">${esc(item.reason ?? "")}</td>
       <td>—</td><td>—</td><td>—</td>
@@ -215,7 +217,7 @@ function appendRow(n, item) {
 }
 
 function exportValid() {
-  const lines = results.filter(r => r.valid).map(r => r._raw);
+  const lines = results.filter(r => r.valid).map(r => r._raw || r.input);
   const blob = new Blob([lines.join("\n")], { type: "text/plain" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
