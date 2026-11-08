@@ -99,6 +99,19 @@
 </header>
 
 <div class="wrap">
+  <!-- Zip upload -->
+  <div style="border:1px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:20px;">
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em;">Upload zip of cookie .txt files</div>
+    <div class="row" style="margin-top:0">
+      <label id="zipLabel" style="cursor:pointer;padding:8px 18px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:.82rem;color:var(--text);transition:border-color .15s;" onmouseover="this.style.borderColor='#1db954'" onmouseout="this.style.borderColor='var(--border)'">
+        Choose .zip
+        <input type="file" id="zipInput" accept=".zip" style="display:none" onchange="onZipSelected(this)" />
+      </label>
+      <span id="zipName" style="font-size:.8rem;color:var(--muted);">No file chosen</span>
+      <button id="btnZip" onclick="runZip()" disabled style="margin-left:auto;background:var(--green);color:#000;padding:8px 20px;border-radius:6px;border:none;cursor:pointer;font-size:.85rem;font-weight:600;opacity:.4;">Check Zip</button>
+    </div>
+  </div>
+
   <label for="input">sp_dc value <span style="color:#555">or</span> full Netscape cookie file — one entry per line</label>
   <textarea id="input" placeholder="AQBxi3...  ← paste sp_dc value directly&#10;&#10;— OR —&#10;&#10;.spotify.com	TRUE	/	TRUE	...  ← full Netscape cookie file"></textarea>
 
@@ -227,6 +240,61 @@ function exportValid() {
 
 function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+let zipFile = null;
+function onZipSelected(input) {
+  zipFile = input.files[0] || null;
+  document.getElementById("zipName").textContent = zipFile ? zipFile.name : "No file chosen";
+  const btn = document.getElementById("btnZip");
+  btn.disabled = !zipFile;
+  btn.style.opacity = zipFile ? "1" : ".4";
+  btn.style.cursor = zipFile ? "pointer" : "default";
+}
+
+async function runZip() {
+  if (!zipFile) return;
+  const btn = document.getElementById("btnZip");
+  btn.disabled = true;
+  btn.style.opacity = ".4";
+
+  document.getElementById("tbody").innerHTML = "";
+  document.getElementById("table").style.display = "table";
+  document.getElementById("export").style.display = "none";
+  results = [];
+
+  const prog = document.getElementById("progress");
+  const bar = document.getElementById("progressBar");
+  prog.style.display = "block";
+  bar.style.width = "10%";
+
+  const stats = document.getElementById("stats");
+  stats.innerHTML = "Uploading & checking…";
+
+  const fd = new FormData();
+  fd.append("file", zipFile);
+
+  try {
+    const res = await fetch("/api/check-zip", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) { stats.innerHTML = `<span style="color:var(--red)">${esc(data.error)}</span>`; return; }
+
+    data.forEach((item, i) => {
+      results.push({ ...item, _raw: item.spDc });
+      appendRow(i + 1, { ...item, input: item.filename });
+    });
+
+    bar.style.width = "100%";
+    const valid = results.filter(r => r.valid).length;
+    stats.innerHTML = `<b>${valid}</b> valid / <b>${data.length}</b> checked`;
+    if (results.some(r => r.valid)) document.getElementById("export").style.display = "inline-block";
+  } catch (e) {
+    stats.innerHTML = `<span style="color:var(--red)">Error: ${esc(e.message)}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "pointer";
+  }
 }
 </script>
 </body>

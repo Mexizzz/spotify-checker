@@ -1,6 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const multer = require("multer");
+const AdmZip = require("adm-zip");
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -203,6 +207,54 @@ app.post("/api/check", async (req, res) => {
         return { input: preview, ...result };
       } catch (e) {
         return { input: input.slice(0, 16) + "…", valid: false, reason: e.message };
+      }
+    })
+  );
+
+  res.json(results.map((r) => (r.status === "fulfilled" ? r.value : { valid: false, reason: "internal_error" })));
+});
+
+// Extract sp_dc value from a cookie file (Netscape format with optional header text)
+function extractSpDc(text) {
+  for (const line of text.split("\n")) {
+    const parts = line.trim().split("\t");
+    if (parts.length >= 7 && parts[5].trim() === "sp_dc") {
+      return parts[6].trim();
+    }
+  }
+  return null;
+}
+
+// Upload a zip of cookie .txt files → extract sp_dc from each → check all
+app.post("/api/check-zip", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+  let zip;
+  try {
+    zip = new AdmZip(req.file.buffer);
+  } catch {
+    return res.status(400).json({ error: "Invalid zip file" });
+  }
+
+  const entries = zip.getEntries().filter(e => !e.isDirectory && e.entryName.endsWith(".txt"));
+  if (!entries.length) return res.status(400).json({ error: "No .txt files found in zip" });
+  if (entries.length > 200) return res.status(400).json({ error: "Max 200 files per zip" });
+
+  const tasks = entries.map((entry) => {
+    const content = entry.getData().toString("utf-8");
+    const spDc = extractSpDc(content);
+    const filename = path.basename(entry.entryName);
+    return { filename, spDc };
+  });
+
+  const results = await Promise.allSettled(
+    tasks.map(async ({ filename, spDc }) => {
+      if (!spDc) return { filename, valid: false, reason: "sp_dc_not_found" };
+      try {
+        const result = await checkAccount(spDc);
+        return { filename, spDc: spDc.slice(0, 16) + "…", ...result };
+      } catch (e) {
+        return { filename, spDc: spDc?.slice(0, 16) + "…", valid: false, reason: e.message };
       }
     })
   );
