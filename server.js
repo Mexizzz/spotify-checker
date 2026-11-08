@@ -252,7 +252,7 @@ app.post("/api/check-zip", upload.single("file"), async (req, res) => {
       if (!spDc) return { filename, valid: false, reason: "sp_dc_not_found" };
       try {
         const result = await checkAccount(spDc);
-        return { filename, spDc: spDc.slice(0, 16) + "…", ...result };
+        return { filename, spDc, ...result };
       } catch (e) {
         return { filename, spDc: spDc?.slice(0, 16) + "…", valid: false, reason: e.message };
       }
